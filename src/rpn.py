@@ -5,8 +5,8 @@ import torch.nn.functional as F
 from torchsummary import summary
 from src.device import device
 from src.anchor_generator import AnchorGenerator
-from src.feature_extractor import VGGFeatureExtractor
 from src.box_utils import decode_deltas_to_boxes
+from src.context_block import context_block2d
 from src import config
 from typing import cast
 from torch import Tensor
@@ -19,6 +19,7 @@ class RPNHead(nn.Module):
         self.conv1 = nn.Conv2d(256, 256, 3, 1, 1)
         self.conv_logits = nn.Conv2d(in_channel, n_anchors * 2, 1, 1)
         self.conv_deltas = nn.Conv2d(in_channel, n_anchors * 4, 1, 1)
+        self.ctx_blk = context_block2d(256).to(device)
         self.weight_init()
 
     def weight_init(self):
@@ -29,6 +30,7 @@ class RPNHead(nn.Module):
 
     def forward(self, feature):
         feature = F.relu(self.conv1(feature))
+        feature = self.ctx_blk(feature)
         logits = self.conv_logits(feature)
         deltas = self.conv_deltas(feature)
         return logits, deltas

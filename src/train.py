@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+import os
 from tqdm import tqdm
 from src.faster_rcnn_renset_fpn import FasterRCNNResnet50FPN
 from src.visualize import visualize
@@ -13,11 +14,15 @@ console_log = ConsoleLog(lines_up_on_end=1)
 def train():
     faster_rcnn = FasterRCNNResnet50FPN().to(device)
     faster_rcnn.train()
-    lr = 1e-4
+    lr = 1e-5
+    epochs = 60
+    
+    
     opt = torch.optim.Adam(faster_rcnn.parameters(), lr=lr)
     dataset = AnnotationDataset()
     data_loader = DataLoader(dataset, shuffle=True, batch_size=1)
-    for epoch in range(60):
+    
+    for epoch in range(epochs):
         epoch = epoch+1
         
         for batch_id, (img, boxes, cls_indexes) in enumerate(tqdm(data_loader)):
@@ -41,7 +46,9 @@ def train():
                 if batch_id % 60 == 0:
                     visualize(faster_rcnn, f"{epoch}_batch_{batch_id}.jpg")
 
-
+        if epoch % 5 == 0:
+            state_dict = faster_rcnn.state_dict()
+            torch.save(state_dict, os.path.join("pths", f"model_epoch_{epoch}.pth"))
 
 if __name__ == "__main__":
     train()

@@ -5,7 +5,8 @@ import torchvision.models as models
 import torch.nn.functional as F
 import numpy as np
 from torchsummary import summary
-from src.feature_extractor import ResnetFPNFeactureExtractor, VGGFeatureExtractor
+from context_block import context_block2d
+from src.feature_extractor import ResnetFPNFeactureExtractor
 from src.box_utils import (
     assign_targets_to_anchors_or_proposals, clip_boxes_to_image,
     decode_deltas_to_boxes, encode_boxes_to_deltas, remove_small_boxes,
@@ -36,6 +37,7 @@ class FasterRCNNResnet50FPN(nn.Module):
             output_size=[7, 7],
             sampling_ratio=2
         )
+        self.ctx_blk = context_block2d(256)
 
     def filter_small_rois(self, logits, rois):
         rois = rois.squeeze(1).unsqueeze(0)
@@ -128,7 +130,7 @@ class FasterRCNNResnet50FPN(nn.Module):
         n_neg = len(neg_idx)
         roi_cls_loss = n_pos * cce_loss(cls_logits[pos_idx], distributed_cls_index[pos_idx].long())
         roi_cls_loss += n_neg * cce_loss(cls_logits[neg_idx], distributed_cls_index[neg_idx].long())
-        roi_cls_loss = roi_cls_loss / (n_pos + n_neg)
+        roi_cls_loss = torch.clip(roi_cls_loss / (n_pos + n_neg), min=-1, max=1)
         return roi_cls_loss, roi_reg_loss
 
     def filter_boxes_by_scores_and_size(self, cls_logits, pred_boxes):
@@ -261,7 +263,8 @@ class FasterRCNNResnet50FPN(nn.Module):
                 [rois],
                 image_shapes=[config.image_shape]
             )
-
+            
+        pooling = self.ctx_blk(pooling)
         cls_logits, roi_pred_deltas = self.mlp_detector(pooling)
 
         if self.training:
@@ -284,10 +287,13 @@ class FasterRCNNResnet50FPN(nn.Module):
             ).squeeze(0)
 
             scores, boxes, cls_idxes = self.filter_boxes_by_scores_and_size(cls_logits, pred_boxes)
+            cls_idxes = cls_idxes - 1
 
-            keep = nms(boxes, scores, 0.5)
+            keep = nms(boxes, scores, 0.2)
             scores = scores[keep]
             boxes = boxes[keep]
             cls_idxes = cls_idxes[keep]
+            
+            
 
             return scores, boxes, cls_idxes, rois

@@ -1,9 +1,9 @@
-input_width = 640
-input_height = 480
+input_width = 2**10
+input_height = 2**10
 image_shape = (input_height, input_width)
 
 anchor_ratios = [0.5, 1, 2]
-anchor_scales = [128, 256, 512]
+anchor_scales = [64, 128, 256]
 
 img_shapes = [
     (input_height // 4, input_width // 4),
@@ -35,15 +35,19 @@ n_eval_pre_nms = 6000
 n_eval_post_nms = roi_n_sample
 min_size = 16
 
-n_classes = 4  # include background
+n_classes = 2  # include background
 
 
 dataset_dir = "dataset"
 training_img_dir = "dataset_blood/BCCD"
 test_img_dir = "dataset_blood/BCCD"
 
-pred_score_thresh = 0.05
+pred_score_thresh = 0.1
 
 roi_head_encode_weights = [10, 10, 5, 5]
 
 fpn_feat_channels = 256
+
+font_path = "fonts/wt014.ttf"
+
+labels = ["rust"]
