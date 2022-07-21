@@ -5,7 +5,7 @@ import torchvision.models as models
 import torch.nn.functional as F
 import numpy as np
 from torchsummary import summary
-from context_block import context_block2d
+from src.context_block import context_block2d
 from src.feature_extractor import ResnetFPNFeactureExtractor
 from src.box_utils import (
     assign_targets_to_anchors_or_proposals, clip_boxes_to_image,
@@ -37,7 +37,6 @@ class FasterRCNNResnet50FPN(nn.Module):
             output_size=[7, 7],
             sampling_ratio=2
         )
-        self.ctx_blk = context_block2d(256)
 
     def filter_small_rois(self, logits, rois):
         rois = rois.squeeze(1).unsqueeze(0)
@@ -96,12 +95,17 @@ class FasterRCNNResnet50FPN(nn.Module):
         flattend_labels = flattend_labels.to(device)
         pos_mask = flattend_labels == 1
         keep_mask = torch.abs(flattend_labels) == 1
+        
 
         target_deltas = encode_boxes_to_deltas(flattended_distributed_targets, self.rpn.flattened_multi_scale_anchors)
         objectness_label = torch.zeros_like(flattend_labels, device=device, dtype=torch.long)
         objectness_label[flattend_labels == 1] = 1.0
-
-        rpn_reg_loss = smooth_l1_loss(flattened_pred_deltas[pos_mask], target_deltas[pos_mask])
+        
+        if torch.sum(pos_mask) > 0:
+            rpn_reg_loss = smooth_l1_loss(flattened_pred_deltas[pos_mask], target_deltas[pos_mask])
+        else:
+            rpn_reg_loss = torch.sum(flattened_pred_deltas)*0
+            
         rpn_cls_loss = cce_loss(flattened_pred_fg_bg_logit.squeeze(0)[keep_mask], objectness_label[keep_mask])
 
         return rpn_cls_loss, rpn_reg_loss
@@ -122,15 +126,25 @@ class FasterRCNNResnet50FPN(nn.Module):
         neg_idx = torch.where(sub_labels == -1)[0]
         classes = distributed_cls_index[pos_idx]
 
-        roi_reg_loss = smooth_l1_loss(
-            target_deltas,
-            pred_deltas[pos_idx, classes.long()]
-        )
+
+
+
         n_pos = len(pos_idx)
         n_neg = len(neg_idx)
-        roi_cls_loss = n_pos * cce_loss(cls_logits[pos_idx], distributed_cls_index[pos_idx].long())
-        roi_cls_loss += n_neg * cce_loss(cls_logits[neg_idx], distributed_cls_index[neg_idx].long())
-        roi_cls_loss = torch.clip(roi_cls_loss / (n_pos + n_neg), min=-1, max=1)
+        
+        if n_pos > 0:
+            roi_reg_loss = smooth_l1_loss(
+                target_deltas,
+                pred_deltas[pos_idx, classes.long()]
+            )
+            roi_cls_loss = n_pos * cce_loss(cls_logits[pos_idx], distributed_cls_index[pos_idx].long())
+            roi_cls_loss += n_neg * cce_loss(cls_logits[neg_idx], distributed_cls_index[neg_idx].long())
+        else:
+            roi_cls_loss = n_neg * cce_loss(cls_logits[neg_idx], distributed_cls_index[neg_idx].long())
+            roi_reg_loss = torch.sum(pred_deltas)*0
+            
+        roi_cls_loss = roi_cls_loss / (n_pos + n_neg)
+         
         return roi_cls_loss, roi_reg_loss
 
     def filter_boxes_by_scores_and_size(self, cls_logits, pred_boxes):
@@ -264,7 +278,6 @@ class FasterRCNNResnet50FPN(nn.Module):
                 image_shapes=[config.image_shape]
             )
             
-        pooling = self.ctx_blk(pooling)
         cls_logits, roi_pred_deltas = self.mlp_detector(pooling)
 
         if self.training:

@@ -63,14 +63,14 @@ def resize_and_padding(img, return_window=False):
 
 albumentation_transform = A.Compose([
     A.ShiftScaleRotate(shift_limit=0, rotate_limit=10, p=0.7),
-    A.RGBShift(r_shift_limit=25, g_shift_limit=25, b_shift_limit=25, p=0.9),
+    # A.RGBShift(r_shift_limit=25, g_shift_limit=25, b_shift_limit=25, p=0.1),
     A.HorizontalFlip(p=0.5),
     A.GaussNoise(p=0.5),
     A.RandomBrightnessContrast(p=0.5),
     A.RandomGamma(p=0.5),
     A.OneOf([
         A.Blur(blur_limit=3, p=0.5),
-        # A.ColorJitter(p=0.5)
+        # A.ColorJitter(p=0.1)
     ], p=0.8),
 
     A.LongestMaxSize(max_size=config.input_height, interpolation=1, p=1),
@@ -130,22 +130,22 @@ class AnnotationDataset(Dataset):
         super(AnnotationDataset, self).__init__()
         self.annotations = {}
 
-        annotation_files = ["datasets/rust_signboard_round_3.json"]
+        annotation_files = ["datasets/rust_signboards_round_3.json"]
         negative_sample_dir = "datasets/normal"
         self.data: List[Target] = []
 
         imageId_imagePath = {}
         self.cls_names = []
-        self.cat_coco_ids = []
+        self.cat_coco_ids = [0] # 0 for background
 
         # add negative samples
-        # for img in glob(f"{negative_sample_dir}/*.jpg"):
-        #     data: Target = {
-        #         "boxes": [],
-        #         "image_path": img,
-        #         "segmentations": []
-        #     }
-        #     self.data.append(data)
+        for img in glob(f"{negative_sample_dir}/*.jpg"):
+            data: Target = {
+                "boxes": [],
+                "image_path": img,
+                "segmentations": []
+            }
+            self.data.append(data)
 
         # add positive samples
         for annotation_file in annotation_files:

@@ -66,7 +66,7 @@ def visualize(fast_rcnn: nn.Module = None, image_name:Optional[str]=None, cls_na
         draw = ImageDraw.Draw(img_ori)
 
         # for roi in rois:
-        #     draw.rectangle(((roi[0], roi[1]), (roi[2], roi[3])), outline = (255, 255, 255, 10), width = 1)
+        #     draw.rectangle(((roi[0], roi[1]), (roi[2], roi[3])), outline=(255, 255, 255, 10), width=1)
         
         for box_info in gt_boxes:
             x1, y1, x2, y2, cls_idx = box_info
@@ -85,7 +85,7 @@ def visualize(fast_rcnn: nn.Module = None, image_name:Optional[str]=None, cls_na
 
         for score, box, cls_idx in zip(scores, boxes, cls_idxes):
             xmin, ymin, xmax, ymax=box
-            draw.rectangle(((xmin, ymin), (xmax, ymax)), outline = 'blue', width = 1)
+            draw.rectangle(((xmin, ymin), (xmax, ymax)), outline='blue', width=1)
             draw.text(
                 (xmin, max(ymin - 20, 4)),
                 "{}: {:.2f}".format(cls_names[cls_idx.item()], score.item()), "blue",

@@ -14,11 +14,18 @@ from typing import OrderedDict
 class ResnetFPNFeactureExtractor(nn.Module):
     def __init__(self):
         super(ResnetFPNFeactureExtractor, self).__init__()
-        self.layers = list(models.resnet50(pretrained=True).children())
-        self.conv2 = nn.Sequential(*self.layers[0:5])
-        self.conv3 = nn.Sequential(*self.layers[5:6])
-        self.conv4 = nn.Sequential(*self.layers[6:7])
-        self.conv5 = nn.Sequential(*self.layers[7:8])
+        self.resnet50 = models.resnet50(pretrained=True)
+        
+        self.conv2 = nn.Sequential(
+            self.resnet50.conv1,
+            self.resnet50.bn1,
+            self.resnet50.relu,
+            self.resnet50.maxpool,
+            self.resnet50.layer1
+        )
+        self.conv3 = self.resnet50.layer2
+        self.conv4 = self.resnet50.layer3
+        self.conv5 = self.resnet50.layer4
 
         self.lateral_conv5 = nn.Conv2d(2048, config.fpn_feat_channels, 1, 1)
         self.lateral_conv4 = nn.Conv2d(1024, config.fpn_feat_channels, 1, 1)
@@ -30,10 +37,10 @@ class ResnetFPNFeactureExtractor(nn.Module):
         
     def freeze_params(self):
         modules = [
-            # self.conv2.children(), 
-            # self.conv3.children(), 
-            # self.conv4.children(), 
-            # self.conv5.children()
+            self.conv2, 
+            self.conv3, 
+            self.conv4, 
+            self.conv5
         ]
         for module in modules:
             for layer in module:
@@ -53,3 +60,6 @@ class ResnetFPNFeactureExtractor(nn.Module):
         p2 = self.lateral_conv2(c2) + self.upscale(p3)
 
         return [p2, p3, p4, p5]
+    
+if __name__ == "__main__":
+    print(models.resnet50())
