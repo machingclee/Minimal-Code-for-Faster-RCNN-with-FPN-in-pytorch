@@ -21,8 +21,8 @@ class DetectionResult(TypedDict, total=False):
 
 font = ImageFont.truetype(config.font_path, size=16)
 
-def inference(fast_rcnn: nn.Module = None, pillow_img=None, cls_names = config.labels):
-    # type: (Optional[nn.Module], Optional[Image.Image], List[str]) -> float
+def inference(fast_rcnn: nn.Module = None, pillow_img=None):
+    # type: (Optional[nn.Module], Optional[Image.Image]) -> float
     img = pillow_img
     # img_original_size = deepcopy(img)
     

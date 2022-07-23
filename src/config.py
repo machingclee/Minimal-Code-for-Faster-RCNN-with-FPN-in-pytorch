@@ -39,10 +39,6 @@ min_size = 16
 labels = ["rust"]
 n_classes = 2  # include background
 
-
-dataset_dir = "dataset"
-training_img_dir = "dataset_blood/BCCD"
-test_img_dir = "dataset_blood/BCCD"
 pred_score_thresh = 0.05
 roi_head_encode_weights = [10, 10, 5, 5]
 fpn_feat_channels = 256
